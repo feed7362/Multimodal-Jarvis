@@ -1,0 +1,109 @@
+:root {
+  --darker-gray: #202123;
+  --dark-gray: #343541;
+  --light-gray: #444654;
+  --light-theme-gray: #f4f4f4;
+  --border-color-dark: #525252;
+  --header-width: 110px;
+  --selected-item-color-dark: #32333e;
+}
+* {
+  box-sizing: border-box; /* Ensures consistent box model */
+  margin: 0;
+  padding: 0;
+}
+
+/* 🟢 Sidebar */
+.sidebar {
+  z-index: 2;
+  position: absolute; /* Stick to the left */
+  left: 0; /* Move to the left border */
+  padding: 5px;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  width: var(--header-width);
+  background-color: var(--dark-gray);
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  white-space: nowrap;
+}
+
+nav ul {
+  list-style: none;
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+nav ul li {
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
+
+nav ul li a {
+  color: #fff;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  transition: all 0.3s ease;
+}
+
+nav ul li a:hover {
+  background: #444b5b;
+  border-radius: 8px;
+}
+
+.logo {
+  text-align: center;
+  margin: 10px 0;
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.logo img {
+  width: 32px;
+  height: 32px;
+  border-radius: .99rem;
+  object-fit: cover;
+}
+
+a img:hover {
+  transform: scale(1.1); /* Optional: Slight zoom effect on hover */
+}
+
+/* 🔵 Main Content */
+.main-content {
+  z-index: 1;
+  overflow-x: hidden;
+  height: 100dvh;
+  background-color: var(--light-gray);
+  display: flex;
+  position: absolute;
+  left: calc(var(--header-width));
+  width: calc(100% - var(--header-width));
+  flex-direction: column; 
+  padding: 0%;
+}
+
+.main-content iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* 🟢 Misc */
+::-webkit-scrollbar {
+  width: 8px; /* Adjusts the width of the scrollbar */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2); /* Custom scrollbar color */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* Ensures the scrollbar track blends in */
+}
