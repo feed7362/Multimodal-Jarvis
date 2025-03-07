@@ -27,6 +27,7 @@ router_login = APIRouter(
 @router_login.get("/login")
 async def read_index(request: Request): 
     try:
+        
         return templates.TemplateResponse("userpage.html", {"request": request})
     except Exception:
         raise HTTPException(status_code=500, detail={

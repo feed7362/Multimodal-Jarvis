@@ -6,31 +6,36 @@ document.getElementById("login-form").addEventListener("submit", async function(
     const response = await fetch("/auth/jwt/login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ "username": email, "password": password }) // here internal logic in FastApi need to be override
+        body: new URLSearchParams({
+            "username": email,
+            "password": password
+        })
     });
 
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Login failed:", errorText);
+        alert("Login failed: " + errorText);
+        return;
+    }
+
+    // Parse the JSON response which now includes access_token and token_type
     const data = await response.json().catch(err => {
         console.error("Failed to parse JSON:", err);
         alert("Error parsing server response.");
         return null;
     });
 
-
-    if (!response.ok) {
-        const errorText = await response.text(); // Get the raw response text
-        console.error("Login failed:", errorText);
-        alert("Login failed: " + errorText);
-        return;
-    }
-
-    if (response.ok) {
+    if (data && data.access_token) {
+        // Optionally, store the token in localStorage if you need it for client-side operations
         localStorage.setItem("jwt_token", data.access_token);
         alert("Login successful");
-        window.location.href = "/templates/main_page.html";  // Redirect after login
+        window.location.href = "/";  // Redirect after login
     } else {
-        alert("Login failed: " + (data.detail || "Invalid credentials"));
+        alert("Login failed: Token not provided");
     }
 });
+
 
 // Signup
 document.getElementById("signup-form").addEventListener("submit", async function(event) {
