@@ -1,24 +1,15 @@
+from fastapi import Depends,Request
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import CookieTransport, AuthenticationBackend
 from fastapi_users.authentication import JWTStrategy
-from fastapi.responses import JSONResponse
 from pydantic import UUID4
-from fastapi import Response, status
 from src.auth.manager import get_user_manager
 from src.auth.models import User
 from src.config import settings
 
-class CustomCookieTransport(CookieTransport):
-    
-    async def get_login_response(self, token: str) -> JSONResponse:
-        response = JSONResponse(
-            content={"access_token": token, "token_type": "bearer"},
-            status_code=status.HTTP_200_OK,
-        )
-        return self._set_login_cookie(response, token)
-
-    
-cookie_transport = CustomCookieTransport(cookie_name="bonds", cookie_max_age=3600)
+cookie_transport = CookieTransport(cookie_name="bonds", 
+                                   cookie_max_age=3600,
+                                   cookie_secure=False)
 
 def get_jwt_strategy() -> JWTStrategy:
     return JWTStrategy(secret=settings.SECRET_AUTH, lifetime_seconds=3600)
@@ -35,4 +26,10 @@ fastapi_users = FastAPIUsers[User, UUID4](
 )
 current_active_user = fastapi_users.current_user(active=True)
 
-current_user = fastapi_users.current_user()
+async def get_current_user_async(user=Depends(current_active_user)):
+    return user
+import asyncio
+
+def get_current_user(request: Request):
+    """Sync wrapper that calls the async function"""
+    return asyncio.run(get_current_user_async(request))

@@ -1,13 +1,18 @@
 import uuid
+from datetime import datetime
 from typing import Optional, Dict, Any, Union
 from fastapi import Depends, Request, Response
 from fastapi_users import BaseUserManager, UUIDIDMixin, exceptions, models, schemas, InvalidPasswordException
 from pydantic import UUID4
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.schemas import UserCreate
 from src.config import settings
-from src.auth.models import User
+from src.auth.models import User, UserSettings
 from src.auth.crud import get_user_db
+from src.database import get_async_session
+from src.gradio_ui import load_default_preset
+
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
     reset_password_token_secret = settings.SECRET_AUTH
@@ -36,9 +41,11 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
         password = user_dict.pop("password")
         user_dict["hashed_password"] = self.password_helper.hash(password)
         user_dict["role_id"] = uuid.UUID("e147083d-4e8e-4bd2-bb25-abd96d9e6e1c")
-
+        async for session in get_async_session():
+            user_dict["user_settings"] = uuid.UUID(await create_user_settings(session))
+            
         created_user = await self.user_db.create(user_dict)
-
+        
         await self.on_after_register(created_user, request)
 
         return created_user
@@ -95,3 +102,16 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
 
 async def get_user_manager(user_db=Depends(get_user_db)):
     yield UserManager(user_db)
+
+async def create_user_settings(session: AsyncSession):
+    new_settings = UserSettings(
+        id=uuid.uuid4(),                       # Explicitly setting the id (optional, since default exists)
+        settings=load_default_preset(),
+        updated_at=datetime.now()       # Optional (onupdate already handles it)
+    )
+
+    session.add(new_settings)             # Add the object to the session
+    await session.commit()                      # Commit the transaction
+    await session.refresh(new_settings)
+    print(f"New settings created with ID: {new_settings.id}")
+    return str(new_settings.id)

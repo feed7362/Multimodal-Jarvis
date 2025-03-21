@@ -12,28 +12,31 @@ document.getElementById("login-form").addEventListener("submit", async function(
         })
     });
 
-    if (!response.ok) {
+    if (response.status !== 204) {
         const errorText = await response.text();
         console.error("Login failed:", errorText);
         alert("Login failed: " + errorText);
         return;
     }
-
-    // Parse the JSON response which now includes access_token and token_type
-    const data = await response.json().catch(err => {
-        console.error("Failed to parse JSON:", err);
-        alert("Error parsing server response.");
-        return null;
-    });
-
-    if (data && data.access_token) {
-        // Optionally, store the token in localStorage if you need it for client-side operations
-        localStorage.setItem("jwt_token", data.access_token);
-        alert("Login successful");
-        window.location.href = "/";  // Redirect after login
-    } else {
-        alert("Login failed: Token not provided");
-    }
+    alert("Login successful");
+    window.location.href = "/";
+    
+    //
+    // // Parse the JSON response which now includes access_token and token_type
+    // const data = await response.json().catch(err => {
+    //     console.error("Failed to parse JSON:", err);
+    //     alert("Error parsing server response.");
+    //     return null;
+    // });
+    //
+    // if (data && data.access_token) {
+    //     // Optionally, store the token in localStorage if you need it for client-side operations
+    //     localStorage.setItem("jwt_token", data.access_token);
+    //     alert("Login successful");
+    //     window.location.href = "/";  // Redirect after login
+    // } else {
+    //     alert("Login failed: Token not provided");
+    // }
 });
 
 

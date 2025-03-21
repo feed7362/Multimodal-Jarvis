@@ -4,6 +4,9 @@ from sqlalchemy.orm import relationship
 from src.database import Base
 from sqlalchemy import Column, String, ForeignKey, JSON, DateTime, Text, func, Boolean
 
+from src.gradio_ui import load_default_preset
+
+
 class User(Base):
     __tablename__ = 'users'
 
@@ -15,6 +18,9 @@ class User(Base):
     is_active = Column("is_active", Boolean, nullable=False, default=True)
     is_verified = Column("is_verified", Boolean, nullable=False, default=False)
     time = Column("registered_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user_settings = Column("settings_id", UUID, ForeignKey("user_settings.id"), nullable=True)
+    
     
 class Role(Base):
     __tablename__ = 'role'
@@ -50,6 +56,6 @@ class UserSettings(Base):
     __tablename__ = "user_settings"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    settings = Column(JSON, nullable=True)
+    # user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    settings = Column(JSON, nullable=True, default=load_default_preset())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -28,11 +28,3 @@ class UserUpdate(schemas.BaseUserUpdate):
     role_id: UUID4
     is_active: bool
     is_verified: bool
-
-class UserLoginResponse(schemas.BaseOAuthAccount[UUID4]):
-    access_token: str
-    token_type: str = "bearer"
-    username: str
-    email: EmailStr
-    is_active: bool
-    is_verified: bool

@@ -85,7 +85,7 @@ a img:hover {
   left: calc(var(--header-width));
   width: calc(100% - var(--header-width));
   flex-direction: column; 
-  padding: 0%;
+  padding: 0;
 }
 
 .main-content iframe {

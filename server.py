@@ -1,16 +1,13 @@
 import json
 
 from sqlalchemy.sql.expression import select
-
 from src.auth.models import UserSettings
-from fastapi_users import models as fastapi_users_models
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
 import gradio as gr
-import uuid
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from src.auth.schemas import UserRead, UserCreate, UserUpdate
-from src.auth.base_config import auth_backend, fastapi_users, current_user, current_active_user, get_jwt_strategy
+from src.auth.base_config import auth_backend, fastapi_users, get_jwt_strategy, current_active_user, get_current_user
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from src.pages.router import router_main as pages_router
@@ -85,11 +82,7 @@ app.add_middleware(
 )
 
 app = gr.mount_gradio_app(app, create_chat_ui(), path='/chat', show_error=True, max_file_size="50mb", show_api=False)
-app = gr.mount_gradio_app(app, create_setting_ui(), path='/settings', show_error=True, max_file_size="3mb", show_api=False)
-
-@app.post("/api/v1/agents/{agent_id}/sessions")
-async def create_session(agent_id: str):
-    return {"id": str(uuid.uuid4())}
+app = gr.mount_gradio_app(app, create_setting_ui(), path='/settings', show_error=True, max_file_size="3mb", show_api=False, auth_dependency=get_current_user)
 
 # @app.post("/api/v1/sessions/{session_id}/messages")
 # async def send_message(session_id: str, payload: MessagePayload):
@@ -97,34 +90,36 @@ async def create_session(agent_id: str):
 #     return {"response": f"Bot reply to '{payload.content}'", "state": "ACTIVE"}
 
 
-# @app.get("/api/v1/user/settings")
-# async def get_user_settings(user: fastapi_users_models.BaseUserDB = Depends(fastapi_users.current_user()),
-#                             db: AsyncSession = Depends(get_async_session)):
-#     settings = await db.execute(
-#         select(UserSettings).where(UserSettings.user_id == user.id)
-#     )
-#     user_settings = settings.scalar_one_or_none()
-#     return user_settings.settings if user_settings else {}
+@app.get("/api/v1/user/settings", tags=["settings"])
+async def get_user_settings(user: User = Depends(current_active_user),
+                            db: AsyncSession = Depends(get_async_session)):
+    settings = await db.execute(
+        select(UserSettings).where(UserSettings.id == user.user_settings)
+    )
+    user_settings = settings.scalars().first()
+    return user_settings.settings if user_settings else {}
 
-# @app.post("/api/v1/user/settings")
-# async def update_user_settings(new_settings: dict,
-#                                user: fastapi_users_models.BaseUserDB = Depends(fastapi_users.current_user()),
-#                                db: AsyncSession = Depends(get_async_session)):
-#     settings = await db.execute(
-#         select(UserSettings).where(UserSettings.user_id == user.id)
-#     )
-#     user_settings = settings.scalar_one_or_none()
-#     if user_settings:
-#         user_settings.settings = new_settings
-#     else:
-#         user_settings = UserSettings(user_id=user.id, settings=new_settings)
-#         db.add(user_settings)
-#     await db.commit()
-#     return {"message": "Settings updated"}
+@app.put("/api/v1/user/settings", tags=["settings"])
+async def update_user_settings(new_settings: dict,
+                               user: User = Depends(current_active_user),
+                               db: AsyncSession = Depends(get_async_session)):
+    settings = await db.execute(
+        select(UserSettings).where(UserSettings.id == user.user_settings)
+    )
+    user_settings = settings.scalars().first()
+    if user_settings:
+        user_settings.settings = new_settings
+    else:
+        user_settings = UserSettings(id=user.user_settings, settings=new_settings)
+        db.add(user_settings)
+        await db.flush()
+    await db.commit()
+    await db.refresh(user_settings)
+    return user_settings.settings
 
 @app.get("/api/v1/protected-route")
-async def protected_route(user: User = Depends(current_user)):
-    return {"message": f"Hello, {user.username}!"}
+async def protected_route(user: User = Depends(current_active_user)):
+    return {"message": "Authenticated", "user": user.username}
 
 class ConnectionManager:
     def __init__(self):
@@ -146,7 +141,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-@app.websocket("/ws")
+@app.websocket("/ws_sendMessages")
 async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(get_async_session)):
     await manager.connect(websocket)
     try:
@@ -162,10 +157,6 @@ async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(ge
     except Exception as e:
             return {"error": str(e)}
 
-
-
-
-
 async def get_user_from_ws(websocket: WebSocket, user_db):
     token = websocket.headers.get("Authorization")
     if token and token.startswith("Bearer "):
@@ -177,5 +168,14 @@ async def get_user_from_ws(websocket: WebSocket, user_db):
                 return user
         except Exception as e:
             print(f"❌ Error authenticating user: {e}")
-    await websocket.close(code=1008)
-    raise Exception("Unauthorized WebSocket connection")
+            await websocket.close(code=1008)
+            raise Exception("Unauthorized WebSocket connection")
+        
+        
+# @app.middleware("http")
+# async def add_process_time_header(request: Request, call_next):
+#     start_time = time.time()
+#     response = await call_next(request)
+#     process_time = time.time() - start_time
+#     response.headers["X-Process-Time"] = str(process_time)
+#     return response
