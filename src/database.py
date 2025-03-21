@@ -17,16 +17,3 @@ async_session_maker = async_sessionmaker(
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
-
-# async def _init_db():
-#     async with async_engine.begin() as conn:
-#         await conn.run_sync(Base.metadata.create_all)
-#     return {"ok": True}
-
-async def test_connection():
-    try:
-        async with async_engine.connect() as connection:
-            await connection.execute("SELECT 1")
-            return "Database connection successful!"
-    except Exception as e:
-        return f"Error connecting to database: {e}"

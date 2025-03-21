@@ -105,13 +105,13 @@ async def get_user_manager(user_db=Depends(get_user_db)):
 
 async def create_user_settings(session: AsyncSession):
     new_settings = UserSettings(
-        id=uuid.uuid4(),                       # Explicitly setting the id (optional, since default exists)
+        id=uuid.uuid4(),                      
         settings=load_default_preset(),
-        updated_at=datetime.now()       # Optional (onupdate already handles it)
+        updated_at=datetime.now()      
     )
 
-    session.add(new_settings)             # Add the object to the session
-    await session.commit()                      # Commit the transaction
+    session.add(new_settings)            
+    await session.commit()                     
     await session.refresh(new_settings)
     print(f"New settings created with ID: {new_settings.id}")
     return str(new_settings.id)

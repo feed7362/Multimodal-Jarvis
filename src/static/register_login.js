@@ -20,23 +20,6 @@ document.getElementById("login-form").addEventListener("submit", async function(
     }
     alert("Login successful");
     window.location.href = "/";
-    
-    //
-    // // Parse the JSON response which now includes access_token and token_type
-    // const data = await response.json().catch(err => {
-    //     console.error("Failed to parse JSON:", err);
-    //     alert("Error parsing server response.");
-    //     return null;
-    // });
-    //
-    // if (data && data.access_token) {
-    //     // Optionally, store the token in localStorage if you need it for client-side operations
-    //     localStorage.setItem("jwt_token", data.access_token);
-    //     alert("Login successful");
-    //     window.location.href = "/";  // Redirect after login
-    // } else {
-    //     alert("Login failed: Token not provided");
-    // }
 });
 
 

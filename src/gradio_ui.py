@@ -7,7 +7,7 @@ import httpx
 
 import logging
 logging.basicConfig(
-    level=logging.DEBUG,  # Change to DEBUG for more details
+    level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler(r"Q:\Projects\Multimodal-Jarvis\data\logs\app.log"),  # Save logs to a file
@@ -141,12 +141,11 @@ def create_setting_ui():
                 outputs=None,
                 queue=False
             )
-
+            
             blocks.load(
                 fn=get_settings,
                 inputs=None,
                 outputs=[temp, top_k, rep_penalty, new_tokens, sample],
-                # js="() => { document.getElementById('update_button').click(); }"
             )
 
     return blocks

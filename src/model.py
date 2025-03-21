@@ -1,5 +1,3 @@
-import os
-import logging
 import gradio as gr
 import asyncio
 from transformers import AutoTokenizer, AutoModelForCausalLM
