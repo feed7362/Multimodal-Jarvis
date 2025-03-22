@@ -8,11 +8,11 @@ from src.auth.models import User
 from src.config import settings
 
 cookie_transport = CookieTransport(cookie_name="bonds", 
-                                   cookie_max_age=3600,
+                                   cookie_max_age=36000, # 10 hours
                                    cookie_secure=False)
 
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=settings.SECRET_AUTH, lifetime_seconds=3600)
+    return JWTStrategy(secret=settings.SECRET_AUTH, lifetime_seconds=36000) # 10 hours
 
 auth_backend = AuthenticationBackend(
     name="jwt",
