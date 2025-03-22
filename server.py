@@ -1,5 +1,4 @@
 import json
-
 from sqlalchemy.sql.expression import select
 from src.auth.models import UserSettings
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +8,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from src.auth.schemas import UserRead, UserCreate, UserUpdate
 from src.auth.base_config import auth_backend, fastapi_users, get_jwt_strategy, current_active_user, get_current_user
 from fastapi.middleware.cors import CORSMiddleware
+from scalar_fastapi import get_scalar_api_reference
 from fastapi.staticfiles import StaticFiles
 from src.pages.router import router_main as pages_router
 from src.pages.router import router_login as login_router
@@ -31,7 +31,16 @@ app = FastAPI(
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     },
+    redoc_url=None
 )
+
+@app.get("/scalar", include_in_schema=False)
+async def scalar_html():
+    return get_scalar_api_reference(
+        openapi_url=app.openapi_url,
+        title=app.title,
+    )
+
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
 app.include_router(pages_router)
 app.include_router(login_router)
