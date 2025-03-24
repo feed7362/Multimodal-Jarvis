@@ -1,12 +1,14 @@
 import json
 from sqlalchemy.sql.expression import select
+
+from src.auth.manager import get_user_manager
 from src.auth.models import UserSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
 import gradio as gr
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from src.auth.schemas import UserRead, UserCreate, UserUpdate
-from src.auth.base_config import auth_backend, fastapi_users, get_jwt_strategy, current_active_user, get_current_user
+from src.auth.base_config import auth_backend, fastapi_users, current_active_user, get_current_user, get_jwt_strategy
 from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +16,9 @@ from src.pages.router import router_main as pages_router
 from src.pages.router import router_login as login_router
 from src.gradio_ui import create_chat_ui, create_setting_ui
 from src.auth.models import User
+
+from src.logger import CustomLogger
+LOGGER = CustomLogger(__name__).logger
 
 app = FastAPI(
     # lifespan="on",
@@ -36,6 +41,7 @@ app = FastAPI(
 
 @app.get("/scalar", include_in_schema=False)
 async def scalar_html():
+    LOGGER.info("Scalar API reference requested")
     return get_scalar_api_reference(
         openapi_url=app.openapi_url,
         title=app.title,
@@ -90,7 +96,7 @@ app.add_middleware(
                    "Authorization"],
 )
 
-app = gr.mount_gradio_app(app, create_chat_ui(), path='/chat', show_error=True, max_file_size="50mb", show_api=False)
+app = gr.mount_gradio_app(app, create_chat_ui(), path='/chat', show_error=True, max_file_size="50mb", show_api=False, auth_dependency=get_current_user)
 app = gr.mount_gradio_app(app, create_setting_ui(), path='/settings', show_error=True, max_file_size="3mb", show_api=False, auth_dependency=get_current_user)
 
 # @app.post("/api/v1/sessions/{session_id}/messages")
@@ -100,30 +106,34 @@ app = gr.mount_gradio_app(app, create_setting_ui(), path='/settings', show_error
 
 
 @app.get("/api/v1/user/settings", tags=["settings"])
-async def get_user_settings(user: User = Depends(current_active_user),
-                            db: AsyncSession = Depends(get_async_session)):
+async def get_user_settings(user: User = Depends(current_active_user),  db: AsyncSession = Depends(get_async_session)):
     settings = await db.execute(
         select(UserSettings).where(UserSettings.id == user.user_settings)
     )
     user_settings = settings.scalars().first()
+    LOGGER.info("User settings (get /api/v1/user/settings) %s of %s user", user_settings, user.id)
     return user_settings.settings if user_settings else {}
 
 @app.put("/api/v1/user/settings", tags=["settings"])
 async def update_user_settings(new_settings: dict,
                                user: User = Depends(current_active_user),
                                db: AsyncSession = Depends(get_async_session)):
+    LOGGER.debug("Updating settings for user %s", user.id)
     settings = await db.execute(
         select(UserSettings).where(UserSettings.id == user.user_settings)
     )
     user_settings = settings.scalars().first()
     if user_settings:
         user_settings.settings = new_settings
+        LOGGER.info("Existing user settings found for user %s", user.id)
     else:
         user_settings = UserSettings(id=user.user_settings, settings=new_settings)
         db.add(user_settings)
         await db.flush()
+        LOGGER.warning("User settings not found for user %s, creating new settings", user.id)
     await db.commit()
     await db.refresh(user_settings)
+    LOGGER.info("User settings (put /api/v1/user/settings) %s of %s user", user_settings, user.id)
     return user_settings.settings
 
 @app.get("/api/v1/protected-route")
@@ -151,32 +161,44 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 @app.websocket("/ws_sendMessages")
-async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(get_async_session)):
+async def websocket_endpoint(websocket: WebSocket, db = Depends(get_user_manager)):
     await manager.connect(websocket)
     try:
         user = await get_user_from_ws(websocket, db)
+        if user is None:
+            await websocket.close(code=1008)
+            LOGGER.warning("Unauthorized WebSocket connection")
+            return None
         while True:
             data = await websocket.receive_json()
 
             await manager.send_personal_message({"response": f"Bot reply to '{data['content']}'", "state": "ACTIVE"}, websocket)
-            await manager.broadcast(f"Client #{user.username} says: {data}")
+            await manager.broadcast(f"Client #{user.id} says: {data}")
+            LOGGER.info("Client #%s says: %s", user.id, data)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-        await manager.broadcast(f"Client #{user.username} left the chat")
+        await manager.broadcast(f"Client #{user.id} left the chat")
+        LOGGER.info("Client #%s left the chat", user.id)
     except Exception as e:
-            return {"error": str(e)}
+        LOGGER.error("Error during websocket connection: %s", e)
+        return {"error": str(e)}
 
 async def get_user_from_ws(websocket: WebSocket, user_db):
-    token = websocket.headers.get("Authorization")
-    if token and token.startswith("Bearer "):
-        token = token.split("Bearer ")[1]
+    token = websocket.cookies.get("bonds")
+    LOGGER.debug("Token from WebSocket: %s", token)
+    if token:
         try:
-            payload = await get_jwt_strategy.read_token(token, user_db)
-            user = await user_db.get(payload["sub"])
+            payload = await get_jwt_strategy().read_token(token, user_db)
+            LOGGER.info("Payload from WebSocket: %s", payload)
+            if isinstance(payload, User):
+                user = payload
+            else:
+                user = await user_db.get(payload["sub"])
             if user:
+                LOGGER.info("User from WebSocket: %s", user)
                 return user
         except Exception as e:
-            print(f"❌ Error authenticating user: {e}")
+            LOGGER.error(f"Error authenticating user: {e}")
             await websocket.close(code=1008)
             raise Exception("Unauthorized WebSocket connection")
         

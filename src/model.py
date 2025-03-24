@@ -71,10 +71,10 @@ async def __text_to_audiofile__(history):
         data_speech = data_speech.flatten()
         data_speech = np.int16(data_speech / np.max(np.abs(data_speech)) * 32767)
 
-        wavfile.write(r"Q:\Projects\Multimodal-Jarvis\data\audio\bark_out.wav", rate=rate_speech, data=data_speech)
+        wavfile.write(r"/src/data/audio\bark_out.wav", rate=rate_speech, data=data_speech)
         history.append(gr.ChatMessage(
             role = "assistant", 
-            content = gr.Audio(r"Q:\Projects\Multimodal-Jarvis\data\audio\bark_out.wav"),
+            content = gr.Audio(r"/src/data/audio\bark_out.wav"),
             metadata = {"title": rf"🛠️ Used tool {model_name_tts}"}
         ))
         return history

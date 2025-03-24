@@ -6,6 +6,8 @@ from pydantic import UUID4
 from src.auth.manager import get_user_manager
 from src.auth.models import User
 from src.config import settings
+import asyncio
+
 
 cookie_transport = CookieTransport(cookie_name="bonds", 
                                    cookie_max_age=36000, # 10 hours
@@ -28,7 +30,6 @@ current_active_user = fastapi_users.current_user(active=True)
 
 async def get_current_user_async(user=Depends(current_active_user)):
     return user
-import asyncio
 
 def get_current_user(request: Request):
     """Sync wrapper that calls the async function"""

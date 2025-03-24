@@ -5,36 +5,29 @@ import json
 import gradio as gr
 import httpx
 
-import logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(r"Q:\Projects\Multimodal-Jarvis\data\logs\app.log"),  # Save logs to a file
-    ]
-)
+from src.logger import CustomLogger
+LOGGER = CustomLogger(__name__).logger
 
-logging.info("Logging is set up!")
-logger = logging.getLogger(__name__)
-
-__GRADIO_CSS__ = 'src/static/custom_gradio.css'
+GRADIO_CSS = 'src/static/custom_gradio.css'
 BASE_URL = '127.0.0.1:8000'
 AGENT_ID = 'chat'
 HEADERS = {'Content-Type': 'application/json'}
 
-async def send_message(session_id, message):
+async def send_message(session_id, message, cookies):
     url = f"ws://{BASE_URL}/ws_sendMessages"
-    payload = {"role": "user",
-               "content": message,
-               "metadata": "None"}
+    headers = {'Cookie': f"{cookies}"}
+    payload = {"role": "user", "content": message, "metadata": "None"}
+    LOGGER.info("Sending message to the server with payload: %s", payload)
     try:
-        async with websockets.connect(url) as websocket:
+        async with websockets.connect(url, additional_headers=headers) as websocket:
             await websocket.send(json.dumps(payload))
             response = await websocket.recv()
+            LOGGER.info("Received response from the server: %s", response)
         return json.loads(response)
     except Exception as exc:
+        LOGGER.error(f"Error during sending message: {str(exc)}")
         return {"error": str(exc)}
-
+        
 
 theme = gr.themes.Default(
     font=['Noto Sans', 'Helvetica', 'ui-sans-serif', 'system-ui', 'sans-serif'],
@@ -53,14 +46,16 @@ theme = gr.themes.Default(
 )
 
 
-async def __add_message__(message, history, state):  # {'text': '123', 'files': []}
+async def __add_message__(message, history, state, request: gr.Request):  # {'text': '123', 'files': []}
     try:
         if "session_id" not in state:
             state["session_id"] = f"id: {str(uuid.uuid4())}"  # Create a new session if it doesn't exist
+            LOGGER.info("New session created: %s", state["session_id"])
 
         if message is not None:
             session_id = state.get("session_id")
             history.append({"role": "user", "content": message["text"]})
+            LOGGER.info("User message added to history: %s", message["text"])
 
         if message and len(message["files"]) > 0:
             for file_path in message["files"]:
@@ -68,25 +63,27 @@ async def __add_message__(message, history, state):  # {'text': '123', 'files': 
                     transcribed_text = await __audiofile_to_text__(file_path)
                     history.append({"role": "user", "content": file_path, "metadata": {"title": "🎤 User audio"}})
                     history.append({"role": "user", "content": transcribed_text})
+                    LOGGER.info("Transcribed audio file: %s -> %s", file_path, transcribed_text)
 
-        response_data = await send_message(session_id, history[-1]["content"])
-        print(response_data)
+        response_data = await send_message(session_id, history[-1]["content"], request.headers.get('cookie'))
+        LOGGER.info("Received bot response: %s", response_data)
         bot_reply = response_data.get("response", "No response")
         history.append({"role": "assistant", "content": bot_reply})
 
         state["history"] = history
-        print(state)
+        LOGGER.info("Updated state: %s", state)
         if response_data.get("state") == "WAITING_FOR_CONFIRMATION":
             yield bot_reply, state
 
         yield bot_reply, state
 
     except Exception as e:
+        LOGGER.error("Error in __add_message__: %s", str(e))
         raise gr.Error(f"Unsupported Error: {str(e)}")
 
 
 def create_chat_ui():
-    with gr.Blocks(css_paths=__GRADIO_CSS__) as blocks:
+    with gr.Blocks(css_paths=GRADIO_CSS) as blocks:
         with gr.Column(elem_classes=["footer"], show_progress=True):
             state = gr.State({})
             chat = gr.Chatbot(
@@ -124,7 +121,7 @@ def create_chat_ui():
             return blocks
 
 def create_setting_ui():
-    with gr.Blocks(css_paths=__GRADIO_CSS__, elem_classes=["footer"]) as blocks:
+    with gr.Blocks(css_paths=GRADIO_CSS, elem_classes=["footer"]) as blocks:
         with gr.Column():
             temp = gr.Slider(0.0, 2.0, value=0.6, step=0.1, label="temp", interactive=True)
             top_k = gr.Slider(20, 1000, value=50, step=1, label="top_k", interactive=True)
@@ -151,6 +148,7 @@ def create_setting_ui():
     return blocks
 
 def load_default_preset():
+    LOGGER.info("Loaded default settings")
     return {
         'res_temp': 0.6,
         'res_topk': 50,
@@ -163,10 +161,12 @@ async def get_settings(request : gr.Request):
     url = f"http://{BASE_URL}/api/v1/user/settings"
     cookies = request.cookies.get('bonds')
     headers = {'Content-Type': 'application/json', 'Cookie': f"bonds={cookies}"}
+    LOGGER.info("Fetching settings from: %s", url)
     async with httpx.AsyncClient(timeout=10) as client:
         response = await client.get(url, headers=headers)
     if response.status_code == 200:
         updated_settings = response.json()
+        LOGGER.info("Settings received: %s", updated_settings)
         return (
             updated_settings["temp"],
             updated_settings["top_k"],
@@ -175,8 +175,10 @@ async def get_settings(request : gr.Request):
             updated_settings["sample"],
         )  
     elif response.status_code == 401:
+        LOGGER.warning("Unauthorized access to settings")
         raise gr.Error("Login to save settings")
     else:
+        LOGGER.error("Failed to fetch settings: %d", response.status_code)
         raise gr.Error(f"Failed to fetch settings: {response.status_code}")
 
 async def put_settings(request: gr.Request, temp, top_k, rep_penalty, new_tokens, sample):
@@ -190,13 +192,17 @@ async def put_settings(request: gr.Request, temp, top_k, rep_penalty, new_tokens
     url = f"http://{BASE_URL}/api/v1/user/settings"
     cookies = request.cookies.get('bonds')
     headers = {'Content-Type': 'application/json', 'Cookie': f"bonds={cookies}"}
+    LOGGER.info("Updating settings at: %s with params: %s", url, params)
     async with httpx.AsyncClient(timeout=10) as client:
         response = await client.put(url, headers=headers, json=params)
     if response.status_code == 200:
+        LOGGER.info("Settings successfully updated")
         return None
     if response.status_code == 401:
+        LOGGER.warning("Unauthorized attempt to update settings")
         raise gr.Error(f"Login to save settings")
     else:
+        LOGGER.error("Failed to update settings: %d", response.status_code)
         raise gr.Error(f"Failed to update settings: {response.status_code}")
 
 

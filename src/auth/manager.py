@@ -13,12 +13,15 @@ from src.auth.crud import get_user_db
 from src.database import get_async_session
 from src.gradio_ui import load_default_preset
 
+from src.logger import CustomLogger
+LOGGER = CustomLogger(__name__).logger
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
     reset_password_token_secret = settings.SECRET_AUTH
     verification_token_secret = settings.SECRET_AUTH
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
+        LOGGER.info(f"User {user.username} has registered.")
         print(f"User {user.username} has registered.")
 
     async def create(
@@ -47,7 +50,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
         created_user = await self.user_db.create(user_dict)
         
         await self.on_after_register(created_user, request)
-
+        LOGGER.info(f"User {created_user.username} has been created.")
         return created_user
 
     async def validate_password(
@@ -56,10 +59,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
             user: Union[UserCreate, User],
     ) -> None:
         if len(password) < 8:
+            LOGGER.warning(f"User {user.id} password should be at least 8 characters")
             raise InvalidPasswordException(
                 reason="Password should be at least 8 characters"
             )
         if user.email in password:
+            LOGGER.warning(f"User {user.id} password should not contain e-mail")
             raise InvalidPasswordException(
                 reason="Password should not contain e-mail"
             )
@@ -67,16 +72,19 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
     async def on_after_forgot_password(
         self, user: User, token: str, request: Optional[Request] = None
     ):
+        LOGGER.info(f"User {user.id} has forgot their password. Reset token: {token}")
         print(f"User {user.id} has forgot their password. Reset token: {token}")
 
     async def on_after_request_verify(
         self, user: User, token: str, request: Optional[Request] = None
     ):
+        LOGGER.info(f"Verification requested for user {user.id}. Verification token: {token}")
         print(f"Verification requested for user {user.id}. Verification token: {token}")
 
     async def on_after_verify(
             self, user: User, request: Optional[Request] = None
     ):
+        LOGGER.info(f"User {user.id} has been verified")
         print(f"User {user.id} has been verified")
     async def on_after_login(
             self,
@@ -84,12 +92,15 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
             request: Optional[Request] = None,
             response: Optional[Response] = None,
     ):
+        LOGGER.info(f"User {user.id} logged in.")
         print(f"User {user.id} logged in.")
 
     async def on_before_delete(self, user: User, request: Optional[Request] = None):
+        LOGGER.info(f"User {user.id} is going to be deleted")
         print(f"User {user.id} is going to be deleted")
 
     async def on_after_delete(self, user: User, request: Optional[Request] = None):
+        LOGGER.info(f"User {user.id} is successfully deleted")
         print(f"User {user.id} is successfully deleted")
 
     async def on_after_update(
@@ -98,6 +109,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
             update_dict: Dict[str, Any],
             request: Optional[Request] = None,
     ):
+        LOGGER.info(f"User {user.id} has been updated with {update_dict}.")
         print(f"User {user.id} has been updated with {update_dict}.")
 
 async def get_user_manager(user_db=Depends(get_user_db)):
@@ -113,5 +125,6 @@ async def create_user_settings(session: AsyncSession):
     session.add(new_settings)            
     await session.commit()                     
     await session.refresh(new_settings)
+    LOGGER.info(f"New settings created with ID: {new_settings.id}")
     print(f"New settings created with ID: {new_settings.id}")
     return str(new_settings.id)
