@@ -142,33 +142,35 @@ async def protected_route(user: User = Depends(current_active_user)):
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        self.active_connections: dict[int, WebSocket] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, user_id: int):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.active_connections[user_id] = websocket
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    def disconnect(self, user_id: int):
+        if user_id in self.active_connections:
+            del self.active_connections[user_id]
 
-    async def send_personal_message(self, message: json, websocket: WebSocket):
+    @staticmethod
+    async def send_personal_message(message: json, websocket: WebSocket):
         await websocket.send_json(message)
 
     async def broadcast(self, message: str):
-        for connection in self.active_connections:
+        for connection in self.active_connections.values():
             await connection.send_text(message)
 
 manager = ConnectionManager()
 
 @app.websocket("/ws_sendMessages")
 async def websocket_endpoint(websocket: WebSocket, db = Depends(get_user_manager)):
-    await manager.connect(websocket)
+    user = await get_user_from_ws(websocket, db)
+    if user is None:
+        await websocket.close(code=1008)
+        LOGGER.warning("Unauthorized WebSocket connection")
+        return None
     try:
-        user = await get_user_from_ws(websocket, db)
-        if user is None:
-            await websocket.close(code=1008)
-            LOGGER.warning("Unauthorized WebSocket connection")
-            return None
+        await manager.connect(websocket, user.id)
         while True:
             data = await websocket.receive_json()
 
@@ -176,7 +178,7 @@ async def websocket_endpoint(websocket: WebSocket, db = Depends(get_user_manager
             await manager.broadcast(f"Client #{user.id} says: {data}")
             LOGGER.info("Client #%s says: %s", user.id, data)
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        manager.disconnect(user.id)
         await manager.broadcast(f"Client #{user.id} left the chat")
         LOGGER.info("Client #%s left the chat", user.id)
     except Exception as e:
