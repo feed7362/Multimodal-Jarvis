@@ -1,12 +1,14 @@
 import json
+import time
+
 from sqlalchemy.sql.expression import select
 
 from src.auth.manager import get_user_manager
 from src.auth.models import UserSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
-import gradio as gr
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from gradio import mount_gradio_app
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Request
 from src.auth.schemas import UserRead, UserCreate, UserUpdate
 from src.auth.base_config import auth_backend, fastapi_users, current_active_user, get_current_user, get_jwt_strategy
 from fastapi.middleware.cors import CORSMiddleware
@@ -96,8 +98,8 @@ app.add_middleware(
                    "Authorization"],
 )
 
-app = gr.mount_gradio_app(app, create_chat_ui(), path='/chat', show_error=True, max_file_size="50mb", show_api=False, auth_dependency=get_current_user)
-app = gr.mount_gradio_app(app, create_setting_ui(), path='/settings', show_error=True, max_file_size="3mb", show_api=False, auth_dependency=get_current_user)
+app = mount_gradio_app(app, create_chat_ui(), path='/chat', show_error=True, max_file_size="50mb", show_api=False, auth_dependency=get_current_user)
+app = mount_gradio_app(app, create_setting_ui(), path='/settings', show_error=True, max_file_size="3mb", show_api=False, auth_dependency=get_current_user)
 
 # @app.post("/api/v1/sessions/{session_id}/messages")
 # async def send_message(session_id: str, payload: MessagePayload):
@@ -203,12 +205,12 @@ async def get_user_from_ws(websocket: WebSocket, user_db):
             LOGGER.error(f"Error authenticating user: {e}")
             await websocket.close(code=1008)
             raise Exception("Unauthorized WebSocket connection")
-        
-        
-# @app.middleware("http")
-# async def add_process_time_header(request: Request, call_next):
-#     start_time = time.time()
-#     response = await call_next(request)
-#     process_time = time.time() - start_time
-#     response.headers["X-Process-Time"] = str(process_time)
-#     return response
+
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response

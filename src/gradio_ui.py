@@ -1,4 +1,3 @@
-import uuid
 from src.model import __audiofile_to_text__
 import websockets
 import json
@@ -49,7 +48,7 @@ theme = gr.themes.Default(
 async def __add_message__(message, history, state, request: gr.Request):  # {'text': '123', 'files': []}
     try:
         if "session_id" not in state:
-            state["session_id"] = f"id: {str(uuid.uuid4())}"  # Create a new session if it doesn't exist
+            state["session_id"] = request.session_hash
             LOGGER.info("New session created: %s", state["session_id"])
 
         if message is not None:
