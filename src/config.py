@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     DB_USER: str
     DB_PASS: str
     SECRET_AUTH: SecretType
-    debug: bool
+    HF_TOKEN : str
 
     class Config:
         env_file = '.env'

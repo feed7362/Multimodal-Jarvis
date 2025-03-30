@@ -22,8 +22,18 @@ from src.auth.models import User
 from src.logger import CustomLogger
 LOGGER = CustomLogger(__name__).logger
 
+from contextlib import asynccontextmanager
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # LOGGER.info("Starting up: Connecting to DB...")
+    # await async_engine.connect()
+
+    yield
+    # LOGGER.info("Shutting down: Closing DB connections...")
+    # await async_engine.dispose()
+    
 app = FastAPI(
-    # lifespan="on",
+    lifespan=lifespan,
     title="JaRvis",
     summary="App for ML project",
     description="ML project",

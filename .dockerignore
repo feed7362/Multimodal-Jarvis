@@ -1,7 +1,0 @@
-__pycache__/
-.env
-.vscode/
-.gradio/
-.idea/
-Dockerfile
-/models

@@ -1,26 +1,56 @@
+import os
 import gradio as gr
 import asyncio
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from transformers import pipeline
+from huggingface_hub import snapshot_download, login
+from transformers import AutoTokenizer, AutoModelForCausalLM, SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, pipeline
 import numpy as np
+import soundfile as sf
+from datasets import load_dataset
 import torch
-from scipy.io import wavfile
 
-model_name_nlp = r"Q:\Projects\Multimodal-Jarvis\models\nlp\Qwen2.5-1.5B-Instruct"
-model_name_stt = r"Q:\Projects\Multimodal-Jarvis\models\stt\whisper-large-v3-turbo"
-model_name_tts = r"Q:\Projects\Multimodal-Jarvis\models\tts\Suno-Bark"
+from src.config import settings
+from src.logger import CustomLogger
+LOGGER = CustomLogger(__name__).logger
 
-tokenizer = AutoTokenizer.from_pretrained(model_name_nlp)
+login(settings.HF_TOKEN)
+
+def ensure_model_exists(model_path: str, repo_id: str):
+    if not os.path.exists(model_path):
+        LOGGER.warning(f"Model not found: {model_path}. Downloading from Hugging Face...")
+        snapshot_download(repo_id=repo_id, local_dir=model_path)
+    else:
+        LOGGER.info(f"Model found: {model_path}.")
+
+models = {
+    "nlp": (r"./models/nlp/Qwen2.5-1.5B-Instruct", "Qwen/Qwen2.5-1.5B-Instruct"),
+    "stt": (r"./models/stt/whisper-large-v3-turbo", "openai/whisper-large-v3"),
+    "tts": (r"./models/tts/Speecht5", "microsoft/speecht5_tts")
+}
+
+for key, (path, repo) in models.items():
+    LOGGER.info(f"Ensuring model exists at {path} for {key}...")
+    ensure_model_exists(path, repo)
+
+tokenizer = AutoTokenizer.from_pretrained(models["nlp"][0])
+LOGGER.info(f"Tokenizer loaded from {models['nlp'][0]}")
+
 model = AutoModelForCausalLM.from_pretrained(
-    model_name_nlp, 
-    device_map="auto", 
+    models["nlp"][0],
+    device_map="auto",
     torch_dtype="auto"
 )
-transcriber_model = pipeline("automatic-speech-recognition", model = model_name_stt)
-synthesiser = pipeline("text-to-speech", model = model_name_tts)
+LOGGER.info(f"Model loaded from {models['nlp'][0]}")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using {device} for inference")
+transcriber_model = pipeline("automatic-speech-recognition", model=models["stt"][0])
+LOGGER.info(f"Transcriber model loaded from {models['stt'][0]}")
+
+processor = SpeechT5Processor.from_pretrained(models["tts"][0])
+model_speech = SpeechT5ForTextToSpeech.from_pretrained(models["tts"][0])
+vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
+
+embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+LOGGER.info(f"Text-to-speech model loaded from {models['tts'][0]}")
 
 
 async def __bot_output__(history):
@@ -33,7 +63,7 @@ async def __bot_output__(history):
             add_generation_prompt=True,
         )
 
-        model_inputs  = tokenizer([text], return_tensors="pt").to(model.device)
+        model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
         generated_ids = model.generate(**model_inputs, max_new_tokens=512)
         generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)]
         generated_text  = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
@@ -49,7 +79,7 @@ async def __bot_output__(history):
 
 async def __audiofile_to_text__(wav_path):
     try:
-        sample_rate, audio_data = await asyncio.to_thread(wavfile.read, wav_path)
+        audio_data, sample_rate = await asyncio.to_thread(sf.read, wav_path)
 
         audio_data = np.array(audio_data, dtype=np.float32)
         audio_data /= np.max(np.abs(audio_data))
@@ -65,17 +95,14 @@ async def __audiofile_to_text__(wav_path):
 async def __text_to_audiofile__(history):
     try:
         input_text = history[-1]["content"]
-        speech = synthesiser(input_text, forward_params = {"do_sample": True})
-        rate_speech = speech["sampling_rate"]
-        data_speech = speech["audio"]
-        data_speech = data_speech.flatten()
-        data_speech = np.int16(data_speech / np.max(np.abs(data_speech)) * 32767)
-
-        wavfile.write(r"/src/data/audio\bark_out.wav", rate=rate_speech, data=data_speech)
+        inputs = processor(text=input_text, return_tensors="pt")
+        speech = model_speech.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+        speech = speech.numpy()
+        sf.write(r"/src/data/audio/bark_out.wav", speech.numpy(), samplerate=16000)
         history.append(gr.ChatMessage(
-            role = "assistant", 
-            content = gr.Audio(r"/src/data/audio\bark_out.wav"),
-            metadata = {"title": rf"🛠️ Used tool {model_name_tts}"}
+            role="assistant",
+            content=gr.Audio(r"/src/data/audio\bark_out.wav"),
+            metadata={"title": rf"🛠️ Used tool {models['tts'][0]}"}
         ))
         return history
     except Exception as e:
