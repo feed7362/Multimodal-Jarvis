@@ -1,6 +1,6 @@
 import json
 import time
-
+import websockets
 from sqlalchemy.sql.expression import select
 
 from src.auth.manager import get_user_manager
@@ -165,8 +165,21 @@ class ConnectionManager:
             del self.active_connections[user_id]
 
     @staticmethod
-    async def send_personal_message(message: json, websocket: WebSocket):
-        await websocket.send_json(message)
+    async def send_personal_message(websocket: WebSocket, message: dict):
+        """Stream AI model response to the client WebSocket in real time."""
+    
+        uri = "ws://localhost:2222/stream"
+        try:
+            async with websockets.connect(uri) as llm_ws:
+                await llm_ws.send(json.dumps({"text": message}))
+                LOGGER.debug("Message sent to LLM WebSocket: %s", message)
+                async for token in llm_ws:
+                    LOGGER.debug("Token received from LLM WebSocket: %s", token)
+                    parsed_token = json.loads(token) if isinstance(token, str) else token
+                    await websocket.send_json({"response": parsed_token})
+    
+        except Exception as e:
+            await websocket.send_json({"Error": str(e)})
 
     async def broadcast(self, message: str):
         for connection in self.active_connections.values():
@@ -186,7 +199,8 @@ async def websocket_endpoint(websocket: WebSocket, db = Depends(get_user_manager
         while True:
             data = await websocket.receive_json()
 
-            await manager.send_personal_message({"response": f"Bot reply to '{data['content']}'", "state": "ACTIVE"}, websocket)
+            await manager.send_personal_message(websocket, data["content"])
+
             await manager.broadcast(f"Client #{user.id} says: {data}")
             LOGGER.info("Client #%s says: %s", user.id, data)
     except WebSocketDisconnect:

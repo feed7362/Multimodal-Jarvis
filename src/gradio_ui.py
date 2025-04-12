@@ -12,21 +12,6 @@ BASE_URL = '127.0.0.1:8000'
 AGENT_ID = 'chat'
 HEADERS = {'Content-Type': 'application/json'}
 
-async def send_message(session_id, message, cookies):
-    url = f"ws://{BASE_URL}/ws_sendMessages"
-    headers = {'Cookie': f"{cookies}"}
-    payload = {"role": "user", "content": message, "metadata": "None"}
-    LOGGER.info("Sending message to the server with payload: %s", payload)
-    try:
-        async with websockets.connect(url, additional_headers=headers) as websocket:
-            await websocket.send(json.dumps(payload))
-            response = await websocket.recv()
-            LOGGER.info("Received response from the server: %s", response)
-        return json.loads(response)
-    except Exception as exc:
-        LOGGER.error(f"Error during sending message: {str(exc)}")
-        return {"error": str(exc)}
-        
 
 theme = gr.themes.Default(
     font=['Noto Sans', 'Helvetica', 'ui-sans-serif', 'system-ui', 'sans-serif'],
@@ -45,7 +30,32 @@ theme = gr.themes.Default(
 )
 
 
-async def __add_message__(message, history, state, request: gr.Request):  # {'text': '123', 'files': []}
+async def send_message(session_id: str, message: str, cookies: gr.Request):
+    url = f"ws://{BASE_URL}/ws_sendMessages"
+    headers = {'Cookie': f"{cookies}"}
+    payload = {"role": "user", "content": message, "metadata": "None"}
+    LOGGER.info("Sending message to the server with payload: %s", payload)
+    try:
+        async with websockets.connect(url, additional_headers=headers) as websocket:
+            await websocket.send(json.dumps(payload))
+            while True:
+                try:
+                    response = await websocket.recv()
+                    LOGGER.info("Received response from the server: %s", response)
+                    yield json.loads(response)
+                except websockets.exceptions.ConnectionClosedOK:
+                    LOGGER.info("Connection closed normally.")
+                    break
+                except Exception as e:
+                    LOGGER.error("Stream error: %s", e)
+                    break
+            await websocket.close()
+    except Exception as exc:
+        LOGGER.error(f"Error during sending message: {str(exc)}")
+        yield  {"error": str(exc)}
+
+
+async def __add_message__(message: dict, history: list, state: dict, request: gr.Request):  # {'text': '123', 'files': []}
     try:
         if "session_id" not in state:
             state["session_id"] = request.session_hash
@@ -64,17 +74,20 @@ async def __add_message__(message, history, state, request: gr.Request):  # {'te
                     history.append({"role": "user", "content": transcribed_text})
                     LOGGER.info("Transcribed audio file: %s -> %s", file_path, transcribed_text)
 
-        response_data = await send_message(session_id, history[-1]["content"], request.headers.get('cookie'))
-        LOGGER.info("Received bot response: %s", response_data)
-        bot_reply = response_data.get("response", "No response")
-        history.append({"role": "assistant", "content": bot_reply})
+        prompt = history[-1]["content"]
+        history.append({"role": "assistant", "content": " "})
+        LOGGER.info("Prompt message added to history: %s", prompt)
+        async for response_data in send_message(session_id, prompt, request.headers.get("cookie")):
+            token = response_data.get("response", "No response")
+            if isinstance(token, dict):
+                if token.get("end_of_stream"):
+                    LOGGER.info("Detected end_of_stream flag; finishing stream processing...")
+                    break
+            history[-1]["content"] += token
+            
+            yield history[-1]["content"], state
 
         state["history"] = history
-        LOGGER.info("Updated state: %s", state)
-        if response_data.get("state") == "WAITING_FOR_CONFIRMATION":
-            yield bot_reply, state
-
-        yield bot_reply, state
 
     except Exception as e:
         LOGGER.error("Error in __add_message__: %s", str(e))

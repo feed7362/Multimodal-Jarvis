@@ -22,7 +22,7 @@ def ensure_model_exists(model_path: str, repo_id: str):
         LOGGER.info(f"Model found: {model_path}.")
 
 models = {
-    "nlp": (r"./models/nlp/Qwen2.5-1.5B-Instruct", "Qwen/Qwen2.5-1.5B-Instruct"),
+    # "nlp": (r"./models/nlp/Qwen2.5-1.5B-Instruct", "Qwen/Qwen2.5-1.5B-Instruct"),
     "stt": (r"./models/stt/whisper-large-v3-turbo", "openai/whisper-large-v3"),
     "tts": (r"./models/tts/Speecht5", "microsoft/speecht5_tts")
 }
@@ -31,15 +31,15 @@ for key, (path, repo) in models.items():
     LOGGER.info(f"Ensuring model exists at {path} for {key}...")
     ensure_model_exists(path, repo)
 
-tokenizer = AutoTokenizer.from_pretrained(models["nlp"][0])
-LOGGER.info(f"Tokenizer loaded from {models['nlp'][0]}")
-
-model = AutoModelForCausalLM.from_pretrained(
-    models["nlp"][0],
-    device_map="auto",
-    torch_dtype="auto"
-)
-LOGGER.info(f"Model loaded from {models['nlp'][0]}")
+# tokenizer = AutoTokenizer.from_pretrained(models["nlp"][0])
+# LOGGER.info(f"Tokenizer loaded from {models['nlp'][0]}")
+# 
+# model = AutoModelForCausalLM.from_pretrained(
+#     models["nlp"][0],
+#     device_map="auto",
+#     torch_dtype=torch.float16
+# )
+# LOGGER.info(f"Model loaded from {models['nlp'][0]}")
 
 transcriber_model = pipeline("automatic-speech-recognition", model=models["stt"][0])
 LOGGER.info(f"Transcriber model loaded from {models['stt'][0]}")
@@ -53,28 +53,28 @@ speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze
 LOGGER.info(f"Text-to-speech model loaded from {models['tts'][0]}")
 
 
-async def __bot_output__(history):
-    try:
-        history.append(gr.ChatMessage(role="assistant", content=""))
-
-        text = tokenizer.apply_chat_template(
-            history,
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-
-        model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
-        generated_ids = model.generate(**model_inputs, max_new_tokens=512)
-        generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)]
-        generated_text  = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-        
-        if not generated_text or not isinstance(generated_text, str):  
-            generated_text = "I'm sorry, but I couldn't generate a response."
-
-        return history
-
-    except Exception as e:
-        raise gr.Error(f"Failed to create text: {str(e)}")
+# async def __bot_output__(history):
+#     try:
+#         history.append(gr.ChatMessage(role="assistant", content=""))
+# 
+#         text = tokenizer.apply_chat_template(
+#             history,
+#             tokenize=False,
+#             add_generation_prompt=True,
+#         )
+# 
+#         model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+#         generated_ids = model.generate(**model_inputs, max_new_tokens=512)
+#         generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)]
+#         generated_text  = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+#         
+#         if not generated_text or not isinstance(generated_text, str):  
+#             generated_text = "I'm sorry, but I couldn't generate a response."
+# 
+#         return history
+# 
+#     except Exception as e:
+#         raise gr.Error(f"Failed to create text: {str(e)}")
 
 
 async def __audiofile_to_text__(wav_path):
