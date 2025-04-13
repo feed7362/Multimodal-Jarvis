@@ -3,6 +3,7 @@ import websockets
 import json
 import gradio as gr
 import httpx
+from src.i18n import _
 
 from src.logger import CustomLogger
 LOGGER = CustomLogger(__name__).logger
@@ -52,7 +53,7 @@ async def send_message(session_id: str, message: str, cookies: gr.Request):
             await websocket.close()
     except Exception as exc:
         LOGGER.error(f"Error during sending message: {str(exc)}")
-        yield  {"error": str(exc)}
+        yield  {"Error while accepting message": str(exc)}
 
 
 async def __add_message__(message: dict, history: list, state: dict, request: gr.Request):  # {'text': '123', 'files': []}
@@ -104,12 +105,16 @@ def create_chat_ui():
                 bubble_full_width=False,
                 placeholder=f"<strong><br><big>JARvis</br></strong>",
                 editable='user',
-                show_share_button=False
+                show_share_button=False,
+                latex_delimiters=[
+                    {"left": "$$", "right": "$$", "display": True},
+                    {"left": "$", "right": "$", "display": False}
+                ]
             )
             textbox = gr.MultimodalTextbox(
                 interactive=True,
                 file_count="multiple",
-                placeholder="Ask me a question",
+                placeholder=_("Ask me a question"),
                 container=False,
                 scale=7,
                 show_label=False,
@@ -142,7 +147,7 @@ def create_setting_ui():
             sample = gr.Radio([True, False], value=False, label="sample", interactive=True)
             with gr.Column():
                 with gr.Row(elem_classes=["update-button"]):
-                    button_update = gr.Button("Update", size="md", variant="primary")
+                    button_update = gr.Button(_("Update"), size="md", variant="primary")
 
             button_update.click(
                 fn=put_settings,
@@ -188,10 +193,10 @@ async def get_settings(request : gr.Request):
         )  
     elif response.status_code == 401:
         LOGGER.warning("Unauthorized access to settings")
-        raise gr.Error("Login to save settings")
+        raise gr.Error(_("Login to save settings"))
     else:
         LOGGER.error("Failed to fetch settings: %d", response.status_code)
-        raise gr.Error(f"Failed to fetch settings: {response.status_code}")
+        raise gr.Error(_("Failed to fetch settings: {code}").format(code=response.status_code))
 
 async def put_settings(request: gr.Request, temp, top_k, rep_penalty, new_tokens, sample):
     params = {
@@ -212,9 +217,9 @@ async def put_settings(request: gr.Request, temp, top_k, rep_penalty, new_tokens
         return None
     if response.status_code == 401:
         LOGGER.warning("Unauthorized attempt to update settings")
-        raise gr.Error(f"Login to save settings")
+        raise gr.Error(_(f"Login to save settings"))
     else:
         LOGGER.error("Failed to update settings: %d", response.status_code)
-        raise gr.Error(f"Failed to update settings: {response.status_code}")
+        raise gr.Error(_("Failed to update settings: {code}").format(code=response.status_code))
 
 

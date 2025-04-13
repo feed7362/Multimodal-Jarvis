@@ -7,6 +7,7 @@ import numpy as np
 import soundfile as sf
 from datasets import load_dataset
 import torch
+from src.i18n import _
 
 from src.config import settings
 from src.logger import CustomLogger
@@ -89,8 +90,7 @@ async def __audiofile_to_text__(wav_path):
         return str(transcribed_text["text"])
     
     except Exception as e:
-        raise gr.Error(f"Failed to transcribe audio: {e}")
-
+        raise gr.Error(_("Failed to transcribe audio: {e}").format(e=e))
 
 async def __text_to_audiofile__(history):
     try:
@@ -106,4 +106,4 @@ async def __text_to_audiofile__(history):
         ))
         return history
     except Exception as e:
-        raise gr.Error(f"Failed to convert text to audio: {e}")
+        raise gr.Error(_("Failed to convert text to audio: {e}").format(e=e))

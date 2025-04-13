@@ -14,6 +14,8 @@ from src.auth.base_config import auth_backend, fastapi_users, current_active_use
 from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
 from fastapi.staticfiles import StaticFiles
+
+from src.i18n import LanguageMiddleware
 from src.pages.router import router_main as pages_router
 from src.pages.router import router_login as login_router
 from src.gradio_ui import create_chat_ui, create_setting_ui
@@ -107,6 +109,16 @@ app.add_middleware(
     allow_headers=["Content-Type", "Set-Cookie", "Access-Control-Allow-Headers", "Access-Control-Allow-Origin",
                    "Authorization"],
 )
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+app.add_middleware(LanguageMiddleware)
 
 app = mount_gradio_app(app, create_chat_ui(), path='/chat', show_error=True, max_file_size="50mb", show_api=False, auth_dependency=get_current_user)
 app = mount_gradio_app(app, create_setting_ui(), path='/settings', show_error=True, max_file_size="3mb", show_api=False, auth_dependency=get_current_user)
@@ -229,12 +241,3 @@ async def get_user_from_ws(websocket: WebSocket, user_db):
             LOGGER.error(f"Error authenticating user: {e}")
             await websocket.close(code=1008)
             raise Exception("Unauthorized WebSocket connection")
-
-
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
