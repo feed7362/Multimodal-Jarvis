@@ -1,51 +1,178 @@
 # Multimodal-Jarvis
 
-Jarvis-like system combined with various models
+A Jarvis-like multimodal assistant system that integrates speech-to-text (STT), text-to-speech (TTS), and natural language processing (NLP) models. The system leverages state-of-the-art models from Hugging Face and provides both command-line and web-based interfaces.
+
+## Features
+
+- **Speech-to-Text (STT):** Converts spoken audio to text using Whisper.
+- **Text-to-Speech (TTS):** Generates natural-sounding speech from text using SpeechT5.
+- **Natural language processing:** (NLP) Supports advanced language understanding and generation.
+- **Modular Design:** Easily extendable with new models and functionalities.
+- **Web UI:** Gradio-based user interface for easy interaction.
+- **API:** FastAPI backend for programmatic access.
+- **Robust Logging:** Centralized logging and log rotation.
+- **Async Database:** PostgreSQL support via SQLAlchemy async.
 
 ## Project Structure
 
 ```plaintext
-jarvis-project/
-├── data/                       # For datasets, audio, logs, or any temporary files
-│   ├── audio/                  # Audio files (input/output for testing)
-│   ├── datasets/               # Training data for models
-│   ├── logs/                   # Logs for debugging
-├── models/                     # Pretrained and fine-tuned model files
-│   ├── nlp/                    # Language models (e.g., GPT, BERT)
-│   ├── tts/                    # Text-to-speech models
-│   └── stt/                    # Speech-to-text models
-├── src/                        # Source code for the project
-│   ├── __init__.py             # Python module init file
-│   ├── main.py                 # Entry point for the system
-│   ├── utils/                  # Utility functions and helper scripts
-│   │   ├── logger.py           # For logging
-│   │   ├── preprocess.py       # Preprocessing helpers for text/audio
-│   │   └── config.py           # Configuration settings
-│   ├── modules/                # Core system modules
-│   │   ├── stt.py              # Speech-to-text implementation
-│   │   ├── nlp.py              # Language model implementation
-│   │   ├── tts.py              # Text-to-speech implementation
-│   │   ├── camera.py           # Camera-related functionalities
-│   │   └── internet.py         # Internet parsing and web scraping
-│   └── interface/              # User interface code (Gradio, FastAPI, etc.)
-│       ├── gradio_ui.py        # Gradio UI implementation
-│       └── fastapi_server.py   # FastAPI backend for APIs
-├── tests/                      # Test cases for each component
-│   ├── test_stt.py             # Tests for Speech-to-Text
-│   ├── test_nlp.py             # Tests for NLP model
-│   ├── test_tts.py             # Tests for Text-to-Speech
-│   └── integration_tests.py    # Tests for the end-to-end pipeline
-├── docs/                       # Documentation for the project
-│   ├── README.md               # General information
-│   ├── setup_guide.md          # Installation and setup instructions
-│   └── api_docs.md             # API documentation (if using FastAPI)
-├── environment/                # Environment configuration
-│   ├── requirements.txt        # Python dependencies
-│   ├── environment.yml         # Conda environment file (optional)
-├── scripts/                    # Scripts for training or fine-tuning models
-│   ├── train_nlp.py            # Training/fine-tuning NLP model
-│   ├── train_tts.py            # Training/fine-tuning TTS model
-│   └── train_stt.py            # Training/fine-tuning STT model
-├── LICENSE                     # License file
-└── README.md                   # High-level project overview
+Multimodal-Jarvis/
+├── .env
+├── .gitignore
+├── LICENSE
+├── README.md
+├── alembic.ini
+├── data
+│   ├── audio
+│   │   └── bark_out.wav
+│   ├── datasets
+│   └── logs/
+│       
+├── docs
+│   ├── README.md
+│   ├── api_docs.md
+│   └── setup_guide.md
+├── main.py
+├── models
+│   ├── any-to-any
+│   ├── nlp
+│   │   └── Qwen2.5-1.5B-Instruct
+│   ├── stt
+│   │   └── whisper-large-v3-turbo
+│   └── tts
+│       └── Speecht5
+├── pyproject.toml
+├── requirements.txt
+├── server.py
+├── src
+│   ├── auth
+│   │   ├── base_config.py
+│   │   ├── crud.py
+│   │   ├── manager.py
+│   │   ├── models.py
+│   │   └── schemas.py
+│   ├── babel.cfg
+│   ├── config.py
+│   ├── database.py
+│   ├── gradio_ui.py
+│   ├── i18n.py
+│   ├── logger.py
+│   ├── model.py
+│   ├── pages
+│   │   └── router.py
+│   ├── static
+│   │   ├── chatbot.jpg
+│   │   ├── custom_gradio.css
+│   │   ├── favicon.png
+│   │   ├── favicon96.png
+│   │   ├── register_login.js
+│   │   ├── static.css
+│   │   ├── static_auth.css
+│   │   └── user.jpg
+│   ├── templates
+│   │   ├── main_page.html
+│   │   └── userpage.html
+│   └── translations
+│       ├── en
+│       │   └── LC_MESSAGES
+│       │       ├── messages.mo
+│       │       └── messages.po
+│       ├── messages.pot
+│       └── uk
+│           └── LC_MESSAGES
+│               ├── messages.mo
+│               └── messages.po
+├── ssl
+│   ├── cert.pem
+│   └── key.pem
+├── tests
+│   ├── __init__.py
+│   ├── test_api.py
+│   ├── test_gradio.ipynb
+│   └── test_main.py
+└── uv.lock
 ```
+## Installation
+
+
+1. Clone the repository:
+```bash
+git clone https://github.com/your-org/Multimodal-Jarvis.git
+cd Multimodal-Jarvis
+```
+2. Create and activate a virtual environment:
+```bash
+uv venv
+source .venv/bin/activate  
+# On Windows: 
+.venv\Scripts\activate
+uv pip install -r requirements.txt
+
+```
+
+3. initializes .env by config below
+4. Database migration
+```bash
+alembic init alembic
+```
+Configure alembic.ini
+Edit the line:
+
+```ini
+sqlalchemy.url = postgresql+asyncpg://DB_USER:DB_PASS@DB_HOST:DB_PORT/DB_NAME
+```
+Then in alembic/env.py add these lines in order to dynamically connect database schemas
+```python
+from src.config import settings
+from src.database import Base
+from src.auth.models import *
+
+config = context.config
+
+section = config.config_ini_section
+config.set_section_option(section, "DB_HOST", settings.DB_HOST)
+config.set_section_option(section, "DB_PORT", settings.DB_PORT)
+config.set_section_option(section, "DB_USER", settings.DB_USER)
+config.set_section_option(section, "DB_NAME", settings.DB_NAME)
+config.set_section_option(section, "DB_PASS", settings.DB_PASS)
+
+target_metadata = Base.metadata
+```
+At last run this command to create a new migration script and apply it:
+```bash
+alembic revision --autogenerate -m "Your migration"
+alembic upgrade head
+```
+## Config
+
+### .env
+```plaintext
+# Registration and Authentication
+SECRET_AUTH=string
+
+# Ports and URLs
+URL=string
+PORT=number
+
+# Database
+DB_HOST=string
+DB_PORT=number
+DB_NAME=string
+DB_USER=string
+DB_PASS=string
+HF_TOKEN=string
+```
+
+## Contributing
+Contributions are welcome! Please open issues or submit pull requests.
+
+## License
+This project is licensed under the terms of the LICENSE.
+
+## Acknowledgements
+
+- [Hugging Face Transformers](https://huggingface.co/transformers)
+
+- [Gradio](https://www.gradio.app/)
+
+- [SQLAlchemy](https://www.sqlalchemy.org/)
