@@ -8,10 +8,10 @@ import soundfile as sf
 from datasets import load_dataset
 import torch
 from src.i18n import _
-
 from src.config import settings
+
 from src.logger import CustomLogger
-LOGGER = CustomLogger(__name__).logger
+LOGGER = CustomLogger(__name__)
 
 login(settings.HF_TOKEN)
 

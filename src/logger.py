@@ -3,7 +3,6 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime
 import os
 import zipfile
-import queue
 
 class CustomLogger:
     LOG_DIR = "data/logs"
@@ -14,9 +13,10 @@ class CustomLogger:
         if not os.path.exists(self.LOG_DIR):
             os.makedirs(self.LOG_DIR)    
         self.__setup_logger__(name, to_console)
+        self.__compress_old_logs__(self.SIZE_THRESHOLD, self.DAYS_THRESHOLD)
         
-    def __repr__(self):
-        return repr(self.logger)
+    def __getattr__(self, attr):
+        return getattr(self.logger, attr)
     
     def __setup_logger__(self, name: str, to_console: bool = False) -> logging.Logger:
         """
@@ -40,12 +40,8 @@ class CustomLogger:
                 rotating_handler.setFormatter(formatter)
                 self.logger.addHandler(rotating_handler)
 
-                log_queue = queue.Queue()
-                queue_handler = logging.handlers.QueueHandler(log_queue)
-                self.logger.addHandler(queue_handler)
             except Exception as e:
-                self.logger.error("Error during creating RotatingFileHandler: %s", e)
-        return self.logger
+                self.logger.exception("Error during creating RotatingFileHandler: %s", e)
     
     def __compress_old_logs__(self, size_threshold: int = None, days_threshold: int = None):
         """
@@ -80,18 +76,18 @@ class CustomLogger:
                                 ZIP.write(os.path.join(self.LOG_DIR, file), os.path.basename(file))
                                 self.logger.info("Added file to archive: %s", file)
                         except Exception as e:
-                            self.logger.error("Error while adding %s to archive: %s", file, e)
+                            self.logger.exception("Error while adding %s to archive: %s", file, e)
                             
                 for file_path in logs_files:
                     try:
                         os.remove(os.path.join(self.LOG_DIR, file_path))
                         self.logger.info("Deleted log file: %s", file_path)
                     except Exception as e:
-                        self.logger.error("Error while deleting file %s: %s", file_path, e)
+                        self.logger.exception("Error while deleting file %s: %s", file_path, e)
                 self.logger.info("All log files added to archives : %s", zip_filename)
             else:
                 self.logger.info("Conditions for compressing not satisfied (require %d bytes, found %d bytes or days %d isn`t %d).",
                             size_threshold, files_size, file_days, days_threshold)
         except Exception as e:
-            self.logger.error("Error during making archive RotatingFileHandler: %s", e)
-            self.logger.error("Error during making archive RotatingFileHandler: %s", e)
+            self.logger.exception("Error during making archive RotatingFileHandler: %s", e)
+            self.logger.exception("Error during making archive RotatingFileHandler: %s", e)

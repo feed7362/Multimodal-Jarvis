@@ -5,7 +5,7 @@ from src.config import settings
 from sqlalchemy import MetaData
 
 from src.logger import CustomLogger
-LOGGER = CustomLogger(__name__).logger
+LOGGER = CustomLogger(__name__)
 
 DATABASE_URL = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASS}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 async_engine = create_async_engine(DATABASE_URL, echo=True)

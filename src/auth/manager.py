@@ -14,7 +14,7 @@ from src.database import get_async_session
 from src.gradio_ui import load_default_preset
 
 from src.logger import CustomLogger
-LOGGER = CustomLogger(__name__).logger
+LOGGER = CustomLogger(__name__)
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
     reset_password_token_secret = settings.SECRET_AUTH

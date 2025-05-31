@@ -6,7 +6,7 @@ import httpx
 from src.i18n import _
 
 from src.logger import CustomLogger
-LOGGER = CustomLogger(__name__).logger
+LOGGER = CustomLogger(__name__)
 
 GRADIO_CSS = 'src/static/custom_gradio.css'
 BASE_URL = '127.0.0.1:8000'
@@ -107,8 +107,10 @@ def create_chat_ui():
                 editable='user',
                 show_share_button=False,
                 latex_delimiters=[
-                    {"left": "$$", "right": "$$", "display": True},
-                    {"left": "$", "right": "$", "display": False}
+                    {'left': '$$', 'right': '$$', 'display': True},
+                    {'left': '$', 'right': '$', 'display': True},
+                    {'left': '\\(', 'right': '\\)', 'display': True},
+                    {'left': '\\[', 'right': '\\]', 'display': True}
                 ]
             )
             textbox = gr.MultimodalTextbox(

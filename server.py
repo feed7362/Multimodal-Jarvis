@@ -22,7 +22,7 @@ from src.gradio_ui import create_chat_ui, create_setting_ui
 from src.auth.models import User
 
 from src.logger import CustomLogger
-LOGGER = CustomLogger(__name__).logger
+LOGGER = CustomLogger(__name__)
 
 from contextlib import asynccontextmanager
 @asynccontextmanager

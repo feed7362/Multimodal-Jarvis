@@ -5,7 +5,7 @@ from fastapi import Depends
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
 from src.logger import CustomLogger
-LOGGER = CustomLogger(__name__).logger
+LOGGER = CustomLogger(__name__)
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
     LOGGER.info("Getting user database.", extra={"session": session})
