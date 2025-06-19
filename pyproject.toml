@@ -1,0 +1,25 @@
+[project]
+name = "multimodal-jarvis"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.10"
+dependencies = [
+    "alembic>=1.16.2",
+    "asyncpg>=0.30.0",
+    "datasets>=3.6.0",
+    "dotenv>=0.9.9",
+    "fastapi>=0.115.13",
+    "fastapi-users>=14.0.1",
+    "fastapi-users-db-sqlalchemy>=7.0.0",
+    "gradio>=5.34.0",
+    "huggingface-hub>=0.33.0",
+    "numpy>=2.2.6",
+    "pydantic>=2.11.7",
+    "pydantic-settings>=2.9.1",
+    "scalar-fastapi>=1.0.3",
+    "sentencepiece>=0.2.0",
+    "soundfile>=0.13.1",
+    "sqlalchemy>=2.0.41",
+    "torch>=2.7.1",
+    "transformers>=4.52.4",
+]

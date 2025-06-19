@@ -2,11 +2,11 @@ import json
 import time
 import websockets
 from sqlalchemy.sql.expression import select
-
+from contextlib import asynccontextmanager
 from src.auth.manager import get_user_manager
 from src.auth.models import UserSettings
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.database import get_async_session
+from src.database import get_async_session, fetch_roles
 from gradio import mount_gradio_app
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Request
 from src.auth.schemas import UserRead, UserCreate, UserUpdate
@@ -24,11 +24,10 @@ from src.auth.models import User
 from src.logger import CustomLogger
 LOGGER = CustomLogger(__name__)
 
-from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # LOGGER.info("Starting up: Connecting to DB...")
-    # await async_engine.connect()
+    LOGGER.info("Starting up: Connecting to DB...")
+    await fetch_roles()
 
     yield
     # LOGGER.info("Shutting down: Closing DB connections...")
@@ -120,14 +119,17 @@ async def add_process_time_header(request: Request, call_next):
 
 app.add_middleware(LanguageMiddleware)
 
-app = mount_gradio_app(app, create_chat_ui(), path='/chat', show_error=True, max_file_size="50mb", show_api=False, auth_dependency=get_current_user)
-app = mount_gradio_app(app, create_setting_ui(), path='/settings', show_error=True, max_file_size="3mb", show_api=False, auth_dependency=get_current_user)
+# app = mount_gradio_app(app, create_chat_ui(), path='/chat', show_error=True, max_file_size="50mb", show_api=False, auth_dependency=get_current_user)
+# app = mount_gradio_app(app, create_setting_ui(), path='/settings', show_error=True, max_file_size="3mb", show_api=False, auth_dependency=get_current_user)
+# 
 
-# @app.post("/api/v1/sessions/{session_id}/messages")
-# async def send_message(session_id: str, payload: MessagePayload):
-#     # Simulate LLM response
-#     return {"response": f"Bot reply to '{payload.content}'", "state": "ACTIVE"}
+chat_app = FastAPI()
+chat_app = mount_gradio_app(chat_app, create_chat_ui(), path="/", show_error=True, max_file_size="50mb", show_api=False, auth_dependency=get_current_user)
+app.mount("/chat", chat_app)
 
+settings_app = FastAPI()
+settings_app = mount_gradio_app(settings_app, create_setting_ui(), path="/", show_error=True, max_file_size="1mb", show_api=False, auth_dependency=get_current_user)
+app.mount("/settings", settings_app)
 
 @app.get("/api/v1/user/settings", tags=["settings"])
 async def get_user_settings(user: User = Depends(current_active_user),  db: AsyncSession = Depends(get_async_session)):

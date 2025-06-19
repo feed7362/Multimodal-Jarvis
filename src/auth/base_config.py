@@ -5,7 +5,7 @@ from fastapi_users.authentication import JWTStrategy
 from pydantic import UUID4
 from src.auth.manager import get_user_manager
 from src.auth.models import User
-from src.config import settings
+from src.config import prod_settings as settings
 import asyncio
 
 

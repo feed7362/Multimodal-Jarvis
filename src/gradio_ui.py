@@ -169,11 +169,11 @@ def create_setting_ui():
 def load_default_preset():
     LOGGER.info("Loaded default settings")
     return {
-        'res_temp': 0.6,
-        'res_topk': 50,
-        'res_rpen': 1.0,
-        'res_mnts': 1024,
-        'res_sample': False
+        'temp': 0.6,
+        'top_k': 50,
+        'rep_penalty': 1.0,
+        'new_tokens': 1024,
+        'sample': False
     }
 
 async def get_settings(request : gr.Request):

@@ -8,7 +8,7 @@ import soundfile as sf
 from datasets import load_dataset
 import torch
 from src.i18n import _
-from src.config import settings
+from src.config import prod_settings as settings
 
 from src.logger import CustomLogger
 LOGGER = CustomLogger(__name__)

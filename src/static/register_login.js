@@ -1,18 +1,14 @@
-document.addEventListener("DOMContentLoaded", function() {
-    const loginBtn = document.querySelector(".l-attop .submit-btn");
-    const signupBtn = document.querySelector(".s-atbottom .submit-btn");
-
-    if (loginBtn) {
-        loginBtn.addEventListener("click", handleLogin);
-    } else {
-        console.error("Login button not found");
-    }
-
-    if (signupBtn) {
-        signupBtn.addEventListener("click", handleSignup);
-    } else {
-        console.error("Signup button not found");
-    }
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".login-signup").forEach(section => {
+        const btn = section.querySelector(".submit-btn");
+        if (btn) {
+            if (section.id === "login") {
+                btn.addEventListener("click", handleLogin);
+            } else if (section.id === "signup") {
+                btn.addEventListener("click", handleSignup);
+            }
+        }
+    });
 });
 
 async function handleLogin(event) {
@@ -45,36 +41,31 @@ async function handleLogin(event) {
     }
 }
 
-// Функция для обработки регистрации
 async function handleSignup(event) {
     event.preventDefault();
 
-    const username = document.querySelector('.s-atbottom input[name="username"]').value;
-    const email = document.querySelector('.s-atbottom input[name="email"]').value;
-    const password = document.querySelector('.s-atbottom input[name="password"]').value;
+    const form = event.target.closest(".login-signup");
+
+    const username = form.querySelector('input[name="username"]').value;
+    const email = form.querySelector('input[name="email"]').value;
+    const password = form.querySelector('input[name="password"]').value;
 
     try {
         const response = await fetch("/auth/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                "username": username,
-                "email": email,
-                "password": password
-            })
+            body: JSON.stringify({ username, email, password })
         });
 
         const data = await response.json();
-        console.log(data);
-
         if (response.ok) {
             alert("Signup successful, please login.");
         } else {
-            alert("Signup failed: " + (data.detail[0].msg || "Error"));
+            alert("Signup failed: " + (data.detail?.[0]?.msg || "Error"));
         }
     } catch (error) {
-        console.error("Error during signup:", error);
         alert("Signup error: " + error.message);
+        console.error("Signup error:", error);
     }
 }
 

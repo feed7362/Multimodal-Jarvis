@@ -123,18 +123,18 @@ sqlalchemy.url = postgresql+asyncpg://DB_USER:DB_PASS@DB_HOST:DB_PORT/DB_NAME
 ```
 Then in alembic/env.py add these lines in order to dynamically connect database schemas
 ```python
-from src.config import settings
+from src.config import database_settings as settings
 from src.database import Base
 from src.auth.models import *
 
 config = context.config
 
 section = config.config_ini_section
-config.set_section_option(section, "DB_HOST", settings.DB_HOST)
-config.set_section_option(section, "DB_PORT", settings.DB_PORT)
-config.set_section_option(section, "DB_USER", settings.DB_USER)
-config.set_section_option(section, "DB_NAME", settings.DB_NAME)
-config.set_section_option(section, "DB_PASS", settings.DB_PASS)
+config.set_section_option(section, "POSTGRES_HOST", settings.POSTGRES_HOST)
+config.set_section_option(section, "POSTGRES_PORT", settings.POSTGRES_PORT)
+config.set_section_option(section, "POSTGRES_USER", settings.POSTGRES_USER)
+config.set_section_option(section, "POSTGRES_NAME", settings.POSTGRES_NAME)
+config.set_section_option(section, "POSTGRES_PASS", settings.POSTGRES_PASS)
 
 target_metadata = Base.metadata
 ```

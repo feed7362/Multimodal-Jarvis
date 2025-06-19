@@ -1,21 +1,22 @@
-from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from fastapi_users.jwt import SecretType
 
-load_dotenv()
+class DatabaseSettings(BaseSettings):
+    POSTGRES_HOST: str
+    POSTGRES_PORT: str
+    POSTGRES_NAME: str
+    POSTGRES_USER: str
+    POSTGRES_PASS: str
 
-class Settings(BaseSettings):
-    DB_HOST: str
-    DB_PORT: str
-    DB_NAME: str
-    DB_USER: str
-    DB_PASS: str
+    class Config:
+        env_file = './env/database.env'
+
+class ProductionSettings(BaseSettings):
     SECRET_AUTH: SecretType
     HF_TOKEN : str
 
     class Config:
-        env_file = '.env'
-        extra = 'allow' # allow additional states in .env files
-        env_file_encoding = 'utf-8'
+        env_file = './env/production.env'
 
-settings = Settings()
+database_settings = DatabaseSettings()
+prod_settings = ProductionSettings()

@@ -7,10 +7,10 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.schemas import UserCreate
-from src.config import settings
+from src.config import prod_settings as settings
 from src.auth.models import User, UserSettings
 from src.auth.crud import get_user_db
-from src.database import get_async_session
+from src.database import get_async_session, get_roles
 from src.gradio_ui import load_default_preset
 
 from src.logger import CustomLogger
@@ -43,7 +43,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID4]):
         )
         password = user_dict.pop("password")
         user_dict["hashed_password"] = self.password_helper.hash(password)
-        user_dict["role_id"] = uuid.UUID("e147083d-4e8e-4bd2-bb25-abd96d9e6e1c")
+        roles = await get_roles()
+        user_dict["role_id"] = roles["user"] # Default role for new users
         async for session in get_async_session():
             user_dict["user_settings"] = uuid.UUID(await create_user_settings(session))
             
