@@ -145,24 +145,33 @@ alembic upgrade head
 ```
 ## Config
 
-### .env
+### database.env
 ```plaintext
-# Registration and Authentication
-SECRET_AUTH=string
-
-# Ports and URLs
-URL=string
-PORT=number
-
-# Database
-DB_HOST=string
-DB_PORT=number
-DB_NAME=string
-DB_USER=string
-DB_PASS=string
-HF_TOKEN=string
+POSTGRES_HOST=localhost or postgres for docker # Database host
+POSTGRES_PORT=5432 # Database port
+POSTGRES_NAME= # Database name
+POSTGRES_USER= # Database user
+POSTGRES_PASS= # Database password
 ```
 
+### production.env
+```plaintext
+SECRET_AUTH= # Secret key for authentication
+HF_TOKEN= # Hugging Face token for model access
+```
+
+## Docker
+To run the application using Docker, you can use the provided `docker-compose.yml` file. Make sure to have Docker and Docker Compose installed.
+
+1. Build and run the Docker containers:
+```bash
+docker compose --env-file ./env/database.env --env-file ./env/production.env -f ./Docker/docker-compose.yml build
+```
+
+2. Deploy the application:
+```bash
+docker compose --env-file ./env/database.env --env-file ./env/production.env -f ./Docker/docker-compose.yml up -d```
+```
 ## Contributing
 Contributions are welcome! Please open issues or submit pull requests.
 

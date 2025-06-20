@@ -1,19 +1,16 @@
 import os
 import gradio as gr
 import asyncio
-from huggingface_hub import snapshot_download, login
+from huggingface_hub import snapshot_download
 from transformers import AutoTokenizer, AutoModelForCausalLM, SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, pipeline
 import numpy as np
 import soundfile as sf
 from datasets import load_dataset
 import torch
 from src.i18n import _
-from src.config import prod_settings as settings
 
 from src.logger import CustomLogger
 LOGGER = CustomLogger(__name__)
-
-login(settings.HF_TOKEN)
 
 def ensure_model_exists(model_path: str, repo_id: str):
     if not os.path.exists(model_path):

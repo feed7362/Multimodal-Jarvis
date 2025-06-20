@@ -5,7 +5,6 @@ from src.database import Base
 from sqlalchemy import Column, String, ForeignKey, JSON, DateTime, Text, func, Boolean
 from src.gradio_ui import load_default_preset
 
-
 class User(Base):
     __tablename__ = 'users'
 
